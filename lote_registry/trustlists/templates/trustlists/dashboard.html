@@ -1,0 +1,39 @@
+{% extends "trustlists/base.html" %}
+
+{% block title %}Dashboard · WP4Trust{% endblock %}
+
+{% block content %}
+<section>
+  <h1>Your trusted lists</h1>
+  <p class="muted">Each row is a list you can edit and publish. Use the admin UI for fine-grained edits.</p>
+
+  {% if schemes %}
+  <table class="grid">
+    <thead>
+      <tr>
+        <th>List type</th>
+        <th>Territory</th>
+        <th>Sequence</th>
+        <th>{% spaceless %}Items{% endspaceless %}</th>
+        <th>Public URL</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in schemes %}
+      <tr>
+        <td><strong>{{ s.list_type_label }}</strong></td>
+        <td>{{ s.territory }}</td>
+        <td>{{ s.sequence_number }}</td>
+        <td>{{ s.entity_count }}</td>
+        <td><a href="{{ s.public_url }}"><code>{{ s.public_url }}</code></a></td>
+        <td><a class="btn" href="{% url 'scheme_detail' s.id %}">Open</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="empty">No schemes assigned to you yet. Run <code>make seed</code> or ask an administrator.</p>
+  {% endif %}
+</section>
+{% endblock %}

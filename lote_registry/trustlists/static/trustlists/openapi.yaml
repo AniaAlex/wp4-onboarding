@@ -1,0 +1,456 @@
+openapi: 3.0.3
+
+info:
+  title: WP4Trust Trusted Lists API
+  version: "0.3.0"
+  description: |
+    Public read-only endpoints for the WP4Trust Lists of Trusted Entities
+    (LoTE) and the List of Trusted Lists (LoTL) per ETSI TS 119 602.
+
+    All paths return the **canonical ETSI 119 602 LoTE document** —
+    `LoTEVersionIdentifier`, `ListAndSchemeInformation`, `TrustedEntitiesList[]`
+    or `PointersToOtherLoTE[]`, etc.
+
+    **Unsigned** versions (`.json`) are generated fresh from the editorial
+    database on each request — no caching at this layer. **Signed sidecars**
+    (`.json.jws` JAdES-B-B and `.xml` XAdES-B-B) are produced by an out-of-band
+    signer that polls the unsigned endpoints and writes the signed artefacts
+    next to them. Until that signer runs, the `.jws` and `.xml` paths return 404.
+
+    **No authentication.** Verifiers and the signer fetch directly. Front
+    typically with nginx for TLS termination, caching, and rate limiting.
+
+servers:
+  - url: http://localhost:8001
+    description: Local Django (dev)
+  - url: http://localhost:8090
+    description: Local Pocketbase (dev)
+  - url: https://lists.wp4trust.eu
+    description: Public, fronted by nginx (production)
+
+tags:
+  - name: discovery
+    description: Index endpoints
+  - name: unsigned
+    description: Unsigned LoTE / LoTL — the source of truth, fresh from DB
+  - name: signed
+    description: Signed sidecars (JAdES JWS, XAdES XML) — produced by the signer
+
+paths:
+  /lists/:
+    get:
+      tags: [discovery]
+      summary: HTML index of all available trusted lists
+      description: Browser-friendly directory page. Use `index.json` for machine-readable form.
+      responses:
+        "200":
+          description: HTML
+          content:
+            text/html: { schema: { type: string } }
+
+  /lists/index.json:
+    get:
+      tags: [discovery]
+      summary: Machine-readable manifest of all trusted lists
+      description: |
+        Used by the signer to discover what to sign without hardcoding
+        the list of schemes. One entry per published `(list_type, territory)` pair.
+      operationId: listManifest
+      responses:
+        "200":
+          description: Manifest
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ListsManifest" }
+              example:
+                lists:
+                  - { list_type: lotl,      territory: EU, url: "/lists/list_of_trusted_lists-EU.json" }
+                  - { list_type: pid,       territory: EU, url: "/lists/pid-EU.json" }
+                  - { list_type: wallet,    territory: EU, url: "/lists/wallet-EU.json" }
+                  - { list_type: pubeaa,    territory: EU, url: "/lists/pubeaa-EU.json" }
+                  - { list_type: wrpac,     territory: EU, url: "/lists/wrpac-EU.json" }
+                  - { list_type: wrprc,     territory: EU, url: "/lists/wrprc-EU.json" }
+                  - { list_type: registrar, territory: EU, url: "/lists/registrars-EU.json" }
+
+  /lists/{filename}:
+    get:
+      tags: [unsigned]
+      summary: Unsigned LoTE / LoTL document
+      description: |
+        Returns the canonical ETSI 119 602 document for a given
+        `(list_type, territory)` pair. The filename pattern is
+        `<basename>-<territory>.json`, where `<basename>` is one of:
+
+          - `pid_providers` — EU PID Providers List
+          - `wallet_providers` — EU Wallet Providers List
+          - `pubeaa_providers` — EU PubEAA Providers List
+          - `wrpac_providers` — EU WRPAC Providers List
+          - `wrprc_providers` — EU WRPRC Providers List
+          - `registrars_registers` — EU Registrars and Registers List
+          - `list_of_trusted_lists` — EU LoTL
+
+        Generated on the fly. **`ListIssueDateTime` and `NextUpdate` are
+        omitted from this unsigned form** — they are added by the signer
+        at signing time so that the JWS payload and the unsigned source
+        differ only in those two fields.
+      operationId: getList
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          description: |
+            Filename in the form `<basename>-<territory>.json`. Pick one
+            of the values in the dropdown — these are the only valid
+            combinations currently published.
+          schema:
+            type: string
+            default: "pid_providers-EU.json"
+            enum:
+              - "pid_providers-EU.json"
+              - "wallet_providers-EU.json"
+              - "pubeaa_providers-EU.json"
+              - "wrpac_providers-EU.json"
+              - "wrprc_providers-EU.json"
+              - "registrars_registers-EU.json"
+              - "list_of_trusted_lists-EU.json"
+      responses:
+        "200":
+          description: Canonical unsigned LoTE / LoTL
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UnsignedLoTE" }
+              examples:
+                pid_EU:    { summary: "PID Providers — EU",     value: { LoTE: { ListAndSchemeInformation: { LoTEVersionIdentifier: 1, LoTESequenceNumber: 1, LoTEType: "http://uri.etsi.org/19602/LoTEType/EUPIDProvidersList", SchemeOperatorName: [{lang: "en", value: "WP4Trust Demo Registry"}], SchemeName: [{lang: "en", value: "EU PID Providers List"}], SchemeTerritory: "EU"}, TrustedEntitiesList: [] } } }
+                lotl_EU:   { summary: "LoTL — EU",              value: { LoTE: { ListAndSchemeInformation: { LoTEVersionIdentifier: 1, LoTESequenceNumber: 1, LoTEType: "http://uri.etsi.org/19602/LoTLType/EUListOfTrustedLists",  SchemeOperatorName: [{lang: "en", value: "WP4Trust Demo Registry"}], SchemeName: [{lang: "en", value: "EU List of Trusted Lists"}], SchemeTerritory: "EU", PointersToOtherLoTE: []} } } }
+        "404":
+          description: No matching scheme published
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              examples:
+                not_found:
+                  value: { error: scheme_not_found, listType: pid, territory: SE }
+
+  /lists/{filename}.jws:
+    get:
+      tags: [signed]
+      summary: JAdES-B-B signed JWS sidecar
+      description: |
+        Compact JWS (`header.payload.signature`) over the unsigned LoTE.
+        Headers: `alg=RS256`, `sigT`, `x5c`, `x5t#S256`. The payload is
+        the unsigned LoTE bytes **with `ListIssueDateTime` and `NextUpdate`
+        injected** — see `/lists/{filename}` for the source.
+
+        Returns 404 until the signer has produced this artefact.
+      operationId: getListSigned
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+            default: "pid_providers-EU.json"
+            enum:
+              - "pid_providers-EU.json"
+              - "wallet_providers-EU.json"
+              - "pubeaa_providers-EU.json"
+              - "wrpac_providers-EU.json"
+              - "wrprc_providers-EU.json"
+              - "registrars_registers-EU.json"
+              - "list_of_trusted_lists-EU.json"
+      responses:
+        "200":
+          description: Compact JWS string
+          content:
+            application/jose:
+              schema: { type: string, example: "eyJhbGciOi...eyJMb1RFIjp7...3hLZ8" }
+        "404": { $ref: "#/components/responses/NotSignedYet" }
+
+  /lists/{basename}-{territory}.xml:
+    get:
+      tags: [signed]
+      summary: XAdES-B-B signed XML sidecar
+      description: |
+        XAdES-B-B XML representation of the same LoTE/LoTL document.
+        Same trust as the JWS — choose your serialization.
+
+        Returns 404 until the signer has produced this artefact.
+      operationId: getListSignedXML
+      parameters:
+        - name: basename
+          in: path
+          required: true
+          schema:
+            type: string
+            default: "pid_providers"
+            enum: [pid_providers, wallet_providers, pubeaa_providers, wrpac_providers, wrprc_providers, registrars_registers, list_of_trusted_lists]
+        - name: territory
+          in: path
+          required: true
+          schema:
+            type: string
+            default: "EU"
+            enum: ["EU"]
+      responses:
+        "200":
+          description: Signed XML
+          content:
+            application/xml:
+              schema: { type: string }
+        "404": { $ref: "#/components/responses/NotSignedYet" }
+
+components:
+
+  responses:
+    NotSignedYet:
+      description: Signer has not yet produced this sidecar
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+
+    ListsManifest:
+      type: object
+      required: [lists]
+      properties:
+        lists:
+          type: array
+          items:
+            type: object
+            required: [list_type, territory, url]
+            properties:
+              list_type:
+                type: string
+                enum: [pid, wallet, pubeaa, wrpac, wrprc, registrar, lotl]
+              territory: { type: string, minLength: 2, maxLength: 3 }
+              url:       { type: string, example: "/lists/pid-EU.json" }
+
+    # ─── multilang text / URI ───
+    LangValue:
+      type: object
+      required: [lang, value]
+      properties:
+        lang:  { type: string, example: "en", description: 'BCP-47 language tag, or "" for non-multilang fields' }
+        value: { type: string, example: "EU PID Providers List" }
+
+    LangURI:
+      type: object
+      required: [lang, uriValue]
+      properties:
+        lang:     { type: string, example: "en" }
+        uriValue: { type: string, format: uri, example: "https://www.example.se/info" }
+
+    # ─── address / identity ───
+    TEPostalAddress:
+      type: object
+      required: [lang, Country]
+      properties:
+        lang:          { type: string, example: "", description: 'Always "" — postal addresses are not multilang' }
+        StreetAddress: { type: string }
+        Locality:      { type: string }
+        PostalCode:    { type: string }
+        Country:       { type: string, minLength: 2, maxLength: 3 }
+
+    TEElectronicAddress:
+      type: object
+      required: [lang, uriValue]
+      properties:
+        lang:     { type: string, example: "", description: 'Always ""' }
+        uriValue: { type: string }
+
+    TEAddress:
+      type: object
+      properties:
+        TEPostalAddress:
+          type: array
+          items: { $ref: "#/components/schemas/TEPostalAddress" }
+        TEElectronicAddress:
+          type: array
+          items: { $ref: "#/components/schemas/TEElectronicAddress" }
+
+    X509Certificate:
+      type: object
+      required: [val]
+      properties:
+        val:
+          type: string
+          description: |
+            Base64 of the DER-encoded certificate (no PEM `-----BEGIN/END-----`
+            armor, no whitespace). Per ETSI TS 119 602 §5.5.5 each `X509Certificate`
+            holds exactly one cert — chains map to multiple `X509Certificates[]` entries.
+
+    PublicKeyValue:
+      type: object
+      description: A JOSE JWK object, inlined (RFC 7517).
+      additionalProperties: true
+      properties:
+        kty: { type: string, example: "EC" }
+        crv: { type: string, example: "P-256" }
+        x:   { type: string }
+        y:   { type: string }
+
+    ServiceDigitalIdentity:
+      type: object
+      properties:
+        X509Certificates:
+          type: array
+          items: { $ref: "#/components/schemas/X509Certificate" }
+        PublicKeyValues:
+          type: array
+          items: { $ref: "#/components/schemas/PublicKeyValue" }
+        OtherIds:
+          type: array
+          description: Other identifiers (e.g., DIDs per ETSI 119 602 Annex H)
+          items: { type: string, example: "did:web:example.com" }
+
+    # ─── service ───
+    ServiceTypeIdentifier:
+      type: string
+      description: One fixed URI per LoTE profile.
+      enum:
+        - http://uri.etsi.org/19602/SvcType/PIDProvider
+        - http://uri.etsi.org/19602/SvcType/WalletSolution/Issuance
+        - http://uri.etsi.org/19602/SvcType/PubEAAProvider
+        - http://uri.etsi.org/19602/SvcType/WRPACProvider
+        - http://uri.etsi.org/19602/SvcType/WRPRCProvider
+        - http://uri.etsi.org/19602/SvcType/Registrar
+
+    ServiceStatus:
+      type: string
+      description: |
+        Present **only** when `LoTEType = EUPubEAAProvidersList` (Annex H).
+        Other profiles use implicit trust — this field is omitted.
+      enum:
+        - http://uri.etsi.org/TrstSvc/TrustedList/Svcstatus/notified
+        - http://uri.etsi.org/TrstSvc/TrustedList/Svcstatus/withdrawn
+
+    ServiceInformation:
+      type: object
+      required: [ServiceName, ServiceTypeIdentifier]
+      properties:
+        ServiceName:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/LangValue" }
+        ServiceDigitalIdentity:    { $ref: "#/components/schemas/ServiceDigitalIdentity" }
+        ServiceTypeIdentifier:     { $ref: "#/components/schemas/ServiceTypeIdentifier" }
+        ServiceStatus:             { $ref: "#/components/schemas/ServiceStatus" }
+
+    TrustedEntityService:
+      type: object
+      required: [ServiceInformation]
+      properties:
+        ServiceInformation: { $ref: "#/components/schemas/ServiceInformation" }
+
+    TrustedEntityInformation:
+      type: object
+      required: [TEName]
+      properties:
+        TEName:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/LangValue" }
+        TEAddress:        { $ref: "#/components/schemas/TEAddress" }
+        TEInformationURI:
+          type: array
+          items: { $ref: "#/components/schemas/LangURI" }
+
+    TrustedEntity:
+      type: object
+      required: [TrustedEntityInformation, TrustedEntityServices]
+      properties:
+        TrustedEntityInformation: { $ref: "#/components/schemas/TrustedEntityInformation" }
+        TrustedEntityServices:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/TrustedEntityService" }
+
+    LoTEQualifier:
+      type: object
+      required: [LoTEType, SchemeTerritory, MimeType]
+      properties:
+        LoTEType:           { type: string, format: uri }
+        SchemeOperatorName:
+          type: array
+          items: { $ref: "#/components/schemas/LangValue" }
+        SchemeTerritory:    { type: string, minLength: 2, maxLength: 3 }
+        MimeType:
+          type: string
+          enum: [application/json, application/xml]
+
+    PointerToOtherLoTE:
+      type: object
+      required: [LoTELocation, LoTEQualifiers]
+      properties:
+        LoTELocation:             { type: string, format: uri }
+        ServiceDigitalIdentities:
+          nullable: true
+          type: array
+          items: { $ref: "#/components/schemas/ServiceDigitalIdentity" }
+        LoTEQualifiers:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/LoTEQualifier" }
+
+    ListAndSchemeInformation:
+      type: object
+      required: [LoTEVersionIdentifier, LoTESequenceNumber, LoTEType, SchemeOperatorName, SchemeName, SchemeTerritory]
+      properties:
+        LoTEVersionIdentifier: { type: integer, example: 1 }
+        LoTESequenceNumber:    { type: integer, minimum: 1 }
+        LoTEType:
+          type: string
+          format: uri
+          description: One of the LoTE or LoTL type URIs from ETSI TS 119 602.
+        SchemeOperatorName:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/LangValue" }
+        SchemeName:
+          type: array
+          items: { $ref: "#/components/schemas/LangValue" }
+        SchemeTerritory: { type: string, minLength: 2, maxLength: 3 }
+        PointersToOtherLoTE:
+          type: array
+          description: Present **only** when `LoTEType` is the LoTL URI.
+          items: { $ref: "#/components/schemas/PointerToOtherLoTE" }
+        ListIssueDateTime:
+          type: string
+          format: date-time
+          description: |
+            Set by the signer at signing time. **Absent** in the unsigned
+            documents served by `/lists/{filename}` — present in the JWS payload
+            and in the XAdES XML.
+        NextUpdate:
+          type: string
+          format: date-time
+          description: Set by the signer (default = `ListIssueDateTime + 6 months`).
+
+    LoTEBody:
+      type: object
+      required: [ListAndSchemeInformation]
+      properties:
+        ListAndSchemeInformation: { $ref: "#/components/schemas/ListAndSchemeInformation" }
+        TrustedEntitiesList:
+          type: array
+          description: |
+            Present for the six entity-bearing profiles. The LoTL profile
+            omits this entirely and uses
+            `ListAndSchemeInformation.PointersToOtherLoTE` instead.
+          items: { $ref: "#/components/schemas/TrustedEntity" }
+
+    UnsignedLoTE:
+      type: object
+      required: [LoTE]
+      properties:
+        LoTE: { $ref: "#/components/schemas/LoTEBody" }
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:    { type: string, example: "scheme_not_found" }
+        listType: { type: string }
+        territory: { type: string }
+        message:  { type: string }

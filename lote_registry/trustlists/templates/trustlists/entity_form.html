@@ -1,0 +1,199 @@
+{% extends "trustlists/base.html" %}
+
+{% block title %}{% if entity %}Edit{% else %}Add{% endif %} entity · WP4Trust{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>{% if entity %}Edit entity{% else %}Add entity{% endif %}</h1>
+  <p class="muted">{{ scheme.get_list_type_display }} · {{ scheme.territory }}</p>
+
+  <form method="post" enctype="multipart/form-data" class="entity-form">
+    {% csrf_token %}
+
+    <fieldset>
+      <legend>Identity</legend>
+
+      <label>
+        Entity ID (URI) *
+        <input type="url" name="entity_id" required value="{{ form_data.entity_id|default:'' }}"
+               placeholder="{{ placeholders.entity_id }}">
+      </label>
+
+      {% if show_status %}
+      <label>
+        Status (PubEAA only)
+        <select name="status">
+          <option value="http://uri.etsi.org/TrstSvc/TrustedList/Svcstatus/notified"
+                  {% if form_data.status == "http://uri.etsi.org/TrstSvc/TrustedList/Svcstatus/notified" %}selected{% endif %}>notified</option>
+          <option value="http://uri.etsi.org/TrstSvc/TrustedList/Svcstatus/withdrawn"
+                  {% if form_data.status == "http://uri.etsi.org/TrstSvc/TrustedList/Svcstatus/withdrawn" %}selected{% endif %}>withdrawn</option>
+        </select>
+      </label>
+      {% endif %}
+    </fieldset>
+
+    <fieldset>
+      <legend>Names <small class="muted">(one per language)</small></legend>
+      <div id="names-list" class="repeater">
+        {% for n in form_data.names %}
+        <div class="row">
+          <input name="names_lang[]"  placeholder="en" value="{{ n.language }}">
+          <input name="names_value[]" placeholder="Display name" value="{{ n.value }}">
+          <button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>
+        </div>
+        {% empty %}
+        <div class="row">
+          <input name="names_lang[]"  placeholder="en">
+          <input name="names_value[]" placeholder="Display name">
+          <button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn ghost" data-add-pair="names-list,names_lang,names_value">+ Add language</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Postal address</legend>
+      <div class="grid-2">
+        <label>Street<input name="addr_street" value="{{ form_data.addr_street|default:'' }}"></label>
+        <label>City<input name="addr_city" value="{{ form_data.addr_city|default:'' }}"></label>
+        <label>Postal code<input name="addr_postal" value="{{ form_data.addr_postal|default:'' }}"></label>
+        <label>Country (ISO 3166-1 alpha-2)<input name="addr_country" maxlength="2"
+               value="{{ form_data.addr_country|default:scheme.territory }}"></label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Electronic addresses <small class="muted">(URLs, mailto:, etc.)</small></legend>
+      <div id="elec-list" class="repeater">
+        {% for u in form_data.electronic %}
+        <div class="row">
+          <input name="electronic[]" value="{{ u }}" placeholder="https://www.example.com">
+          <button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>
+        </div>
+        {% empty %}
+        <div class="row">
+          <input name="electronic[]" placeholder="https://www.example.com">
+          <button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn ghost" data-add-single="elec-list,electronic">+ Add address</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Information URIs <small class="muted">(public-facing info pages, multilang)</small></legend>
+      <div id="info-list" class="repeater">
+        {% for n in form_data.information_uri %}
+        <div class="row">
+          <input name="info_lang[]"  placeholder="en" value="{{ n.language }}">
+          <input name="info_value[]" placeholder="{{ placeholders.info_uri }}" value="{{ n.value }}">
+          <button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>
+        </div>
+        {% empty %}
+        <div class="row">
+          <input name="info_lang[]"  placeholder="en">
+          <input name="info_value[]" placeholder="{{ placeholders.info_uri }}">
+          <button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn ghost" data-add-pair="info-list,info_lang,info_value">+ Add language</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Service</legend>
+      <p class="muted">{{ service_type_label }} · status defaults to <strong>{% if show_status %}entity status{% else %}granted{% endif %}</strong>.</p>
+
+      <label>Service names <small class="muted">(one per language)</small></label>
+      <div id="svcnames-list" class="repeater">
+        {% for n in form_data.service_names %}
+        <div class="row">
+          <input name="svcname_lang[]"  placeholder="en" value="{{ n.language }}">
+          <input name="svcname_value[]" placeholder="{{ placeholders.service_name }}" value="{{ n.value }}">
+          <button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>
+        </div>
+        {% empty %}
+        <div class="row">
+          <input name="svcname_lang[]"  placeholder="en">
+          <input name="svcname_value[]" placeholder="{{ placeholders.service_name }}">
+          <button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn ghost" data-add-pair="svcnames-list,svcname_lang,svcname_value">+ Add language</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Digital identity</legend>
+      <label>
+        X.509 certificate (.pem) <small class="muted">— pick a file or paste below</small>
+        <input type="file" id="cert_pem_file" accept=".pem,.crt,.cer">
+      </label>
+      <label>
+        <textarea id="cert_pem" name="cert_pem" rows="6"
+                  placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----">{{ form_data.cert_pem|default:'' }}</textarea>
+      </label>
+      <label>
+        JWK (paste JSON)
+        <textarea name="jwk_text" rows="3"
+                  placeholder='{"kty":"EC","crv":"P-256","x":"...","y":"..."}'>{{ form_data.jwk_text|default:'' }}</textarea>
+      </label>
+      <label>
+        DID (URI, optional)
+        <input type="url" name="did_uri" value="{{ form_data.did_uri|default:'' }}"
+               placeholder="did:web:example.com">
+      </label>
+    </fieldset>
+
+    <div class="actions">
+      <a class="btn ghost" href="{% url 'scheme_detail' scheme.id %}">Cancel</a>
+      {% if entity %}
+        <button type="submit" formaction="{% url 'entity_delete' scheme.id entity.id %}"
+                formnovalidate class="btn ghost"
+                onclick="return confirm('Delete this entity?')">Delete</button>
+      {% endif %}
+      <button type="submit" class="primary">Save</button>
+    </div>
+  </form>
+</section>
+
+<script>
+// + Add row helpers — pure JS, no HTMX needed.
+document.querySelectorAll("[data-add-pair]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const [listId, langName, valName] = btn.dataset.addPair.split(",");
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML =
+      `<input name="${langName}[]" placeholder="lang">` +
+      `<input name="${valName}[]" placeholder="value">` +
+      `<button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>`;
+    document.getElementById(listId).appendChild(row);
+  });
+});
+document.querySelectorAll("[data-add-single]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const [listId, name] = btn.dataset.addSingle.split(",");
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML =
+      `<input name="${name}[]" placeholder="value">` +
+      `<button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>`;
+    document.getElementById(listId).appendChild(row);
+  });
+});
+
+// File picker → textarea (PEM)
+const certFile = document.getElementById("cert_pem_file");
+if (certFile) {
+  certFile.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => { document.getElementById("cert_pem").value = ev.target.result; };
+    reader.readAsText(file);
+  });
+}
+</script>
+{% endblock %}

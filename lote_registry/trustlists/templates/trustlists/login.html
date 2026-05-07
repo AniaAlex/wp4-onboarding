@@ -1,0 +1,22 @@
+{% extends "trustlists/base.html" %}
+
+{% block title %}Log in · WP4Trust{% endblock %}
+
+{% block content %}
+<section class="card narrow">
+  <h1>Operator log in</h1>
+  <p class="muted">Sign in with the credentials issued by your Member State administrator.</p>
+  <form method="post" action="{% url 'login' %}">
+    {% csrf_token %}
+    <label>
+      Email
+      <input type="email" name="email" required autofocus value="{{ form_data.email }}">
+    </label>
+    <label>
+      Password
+      <input type="password" name="password" required>
+    </label>
+    <button type="submit" class="primary">Log in</button>
+  </form>
+</section>
+{% endblock %}

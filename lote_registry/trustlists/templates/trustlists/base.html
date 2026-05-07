@@ -1,0 +1,46 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}WP4Trust Onboarding{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'trustlists/style.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container">
+      <a class="brand" href="{% url 'root' %}">WP4Trust Onboarding</a>
+      <nav>
+        {% if user.is_authenticated %}
+          <span class="who">{{ user.display_name }} · {{ user.territory }}</span>
+          <a href="{% url 'dashboard' %}">Dashboard</a>
+          <a href="{% url 'lists_index_html' %}">Public lists</a>
+          <a href="{% url 'logout' %}">Log out</a>
+        {% else %}
+          <a href="{% url 'login' %}">Log in</a>
+          <a href="{% url 'lists_index_html' %}">Public lists</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    {% if messages %}
+      {% for message in messages %}
+        <div class="flash {{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+    {% if errors %}
+      <div class="alert error">
+        <strong>Please fix the following:</strong>
+        <ul>{% for field, msg in errors.items %}<li><b>{{ field }}:</b> {{ msg }}</li>{% endfor %}</ul>
+      </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="container muted">
+    <small>WP4Trust pilot · LoTE onboarding · ETSI TS 119 602</small>
+  </footer>
+</body>
+</html>

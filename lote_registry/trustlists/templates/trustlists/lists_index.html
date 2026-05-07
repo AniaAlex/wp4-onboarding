@@ -1,0 +1,30 @@
+{% extends "trustlists/base.html" %}
+
+{% block title %}Trusted Lists · WP4Trust{% endblock %}
+
+{% block content %}
+<section>
+  <h1>WP4Trust trusted lists</h1>
+  <p class="muted">Public unsigned LoTE / LoTL endpoints (no auth).</p>
+
+  {% if schemes %}
+  <table class="grid">
+    <thead>
+      <tr><th>List type</th><th>Territory</th><th>URL</th></tr>
+    </thead>
+    <tbody>
+      {% for s in schemes %}
+      <tr>
+        <td>{{ s.get_list_type_display }}</td>
+        <td>{{ s.territory }}</td>
+        <td><a href="{{ s.public_url }}"><code>{{ s.public_url }}</code></a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted"><a href="/lists/index.json"><code>/lists/index.json</code></a> — machine-readable manifest.</p>
+  {% else %}
+    <p class="empty">No schemes published yet. Run <code>make seed</code>.</p>
+  {% endif %}
+</section>
+{% endblock %}

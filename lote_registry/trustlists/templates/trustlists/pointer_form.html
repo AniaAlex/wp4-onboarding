@@ -1,0 +1,93 @@
+{% extends "trustlists/base.html" %}
+
+{% block title %}{% if pointer %}Edit{% else %}Add{% endif %} pointer · WP4Trust{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>{% if pointer %}Edit pointer{% else %}Add pointer{% endif %}</h1>
+  <p class="muted">{{ scheme.get_list_type_display }} · {{ scheme.territory }}</p>
+
+  <form method="post" class="entity-form">
+    {% csrf_token %}
+
+    <fieldset>
+      <legend>Pointer target</legend>
+
+      <label>
+        Location (URL of the target LoTE) *
+        <input type="url" name="location" required value="{{ form_data.location|default:'' }}"
+               placeholder="https://demo.wp4trust.example/SE/pid_providers-EU.json">
+      </label>
+
+      <label>
+        Scheme territory (ISO 3166-1 alpha-2) *
+        <input type="text" name="scheme_territory" required maxlength="3"
+               value="{{ form_data.scheme_territory|default:'' }}" placeholder="SE">
+      </label>
+
+      <label>
+        Scheme type *
+        <select name="scheme_type" required>
+          <option value="">— select —</option>
+          {% for opt in scheme_type_options %}
+          <option value="{{ opt.value }}" {% if form_data.scheme_type == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label>
+        MIME type *
+        <select name="mime_type" required>
+          <option value="application/json" {% if form_data.mime_type == "application/json" %}selected{% endif %}>application/json</option>
+          <option value="application/xml"  {% if form_data.mime_type == "application/xml" %}selected{% endif %}>application/xml</option>
+        </select>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Scheme operator names <small class="muted">(one per language)</small></legend>
+      <div id="opnames-list" class="repeater">
+        {% for n in form_data.scheme_operator_names %}
+        <div class="row">
+          <input name="opnames_lang[]"  placeholder="en" value="{{ n.language }}">
+          <input name="opnames_value[]" placeholder="Operator name" value="{{ n.value }}">
+          <button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>
+        </div>
+        {% empty %}
+        <div class="row">
+          <input name="opnames_lang[]"  placeholder="en">
+          <input name="opnames_value[]" placeholder="Operator name">
+          <button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn ghost" data-add-pair="opnames-list,opnames_lang,opnames_value">+ Add language</button>
+    </fieldset>
+
+    <div class="actions">
+      <a class="btn ghost" href="{% url 'scheme_detail' scheme.id %}">Cancel</a>
+      {% if pointer %}
+        <button type="submit" formaction="{% url 'pointer_delete' scheme.id pointer.id %}"
+                formnovalidate class="btn ghost"
+                onclick="return confirm('Delete this pointer?')">Delete</button>
+      {% endif %}
+      <button type="submit" class="primary">Save</button>
+    </div>
+  </form>
+</section>
+
+<script>
+document.querySelectorAll("[data-add-pair]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const [listId, langName, valName] = btn.dataset.addPair.split(",");
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML =
+      `<input name="${langName}[]" placeholder="lang">` +
+      `<input name="${valName}[]" placeholder="value">` +
+      `<button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>`;
+    document.getElementById(listId).appendChild(row);
+  });
+});
+</script>
+{% endblock %}

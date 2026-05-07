@@ -1,0 +1,17 @@
+version: "3.2"
+
+services:
+  django:
+    build: .
+    image: wp4-onboarding
+    container_name: wp4-onboarding
+    env_file: .env
+    volumes:
+      - "./lote_registry:/app/lote_registry"
+      - "django_data:/app/data"
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8000}:8000"
+    command: "python manage.py runserver 0.0.0.0:8000"
+
+volumes:
+  django_data:

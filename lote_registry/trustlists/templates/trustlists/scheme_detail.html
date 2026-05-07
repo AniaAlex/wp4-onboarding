@@ -1,0 +1,66 @@
+{% extends "trustlists/base.html" %}
+
+{% block title %}{{ scheme.get_list_type_display }} · WP4Trust{% endblock %}
+
+{% block content %}
+<section>
+  <header class="page-head">
+    <div>
+      <h1>{{ scheme.get_list_type_display }}</h1>
+      <p class="muted">{{ scheme.territory }} · sequence {{ scheme.sequence_number }}</p>
+      <p>Public URL: <a href="{{ scheme.public_url }}"><code>{{ scheme.public_url }}</code></a></p>
+    </div>
+    <div>
+      {% if is_lotl %}
+        <a class="btn primary" href="{% url 'pointer_create' scheme.id %}">+ Add pointer</a>
+      {% else %}
+        <a class="btn primary" href="{% url 'entity_create' scheme.id %}">+ Add entity</a>
+      {% endif %}
+    </div>
+  </header>
+
+  {% if is_lotl %}
+    {% if pointers %}
+    <table class="grid">
+      <thead>
+        <tr><th>Territory</th><th>Scheme type</th><th>Location</th><th>MIME</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for p in pointers %}
+        <tr>
+          <td>{{ p.scheme_territory }}</td>
+          <td><span class="muted">{{ p.scheme_type }}</span></td>
+          <td><code>{{ p.location }}</code></td>
+          <td>{{ p.mime_type }}</td>
+          <td><a class="btn" href="{% url 'pointer_edit' scheme.id p.id %}">Edit</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <p class="empty">No pointers yet. A LoTL points to one or more LoTEs (per Member State, per list type).</p>
+    {% endif %}
+  {% else %}
+    {% if entities %}
+    <table class="grid">
+      <thead>
+        <tr><th>Name</th><th>Entity ID</th><th>Type</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for e in entities %}
+        <tr>
+          <td>{% if e.names %}{{ e.names.0.value }}{% else %}(unnamed){% endif %}</td>
+          <td><code>{{ e.entity_id }}</code></td>
+          <td>{{ e.entity_type }}</td>
+          <td>{{ e.status|default:"—" }}</td>
+          <td><a class="btn" href="{% url 'entity_edit' scheme.id e.id %}">Edit</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <p class="empty">No entities yet. Click "+ Add entity" to register one.</p>
+    {% endif %}
+  {% endif %}
+</section>
+{% endblock %}
