@@ -6,6 +6,7 @@ Mirrors the Pocketbase collections so the OpenAPI contract and the public
 """
 from __future__ import annotations
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 
@@ -174,7 +175,8 @@ class Scheme(models.Model):
 
     @property
     def public_url(self) -> str:
-        return f"/lists/{self.basename}-{self.territory}.json"
+        prefix = getattr(settings, "FORCE_SCRIPT_NAME", "") or ""
+        return f"{prefix}/lists/{self.basename}-{self.territory}.json"
 
 
 class Entity(models.Model):

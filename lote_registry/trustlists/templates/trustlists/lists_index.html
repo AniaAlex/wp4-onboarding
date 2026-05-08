@@ -22,7 +22,7 @@
       {% endfor %}
     </tbody>
   </table>
-  <p class="muted"><a href="/lists/index.json"><code>/lists/index.json</code></a> — machine-readable manifest.</p>
+  <p class="muted"><a href="{% url 'lists_manifest' %}"><code>{{ request.META.SCRIPT_NAME }}/lists/index.json</code></a> — machine-readable manifest.</p>
   {% else %}
     <p class="empty">No schemes published yet. Run <code>make seed</code>.</p>
   {% endif %}
