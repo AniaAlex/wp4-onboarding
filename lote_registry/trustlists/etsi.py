@@ -3,12 +3,12 @@ Build the canonical ETSI 119 602 LoTE / LoTL document from a Scheme row.
 
 This is the Python port of `pb_hooks/_lib.js#buildEtsiLoTE` — same output
 shape, same field naming conventions captured from the demo
-output/<dir>/lote-EU.json files. The Go signer (when wired up) consumes
-this JSON, adds ListIssueDateTime + NextUpdate, and signs.
+output/<dir>/lote-EU.json files.
 """
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from .models import (
@@ -61,6 +61,9 @@ def _to_lang_uri(items: list[dict[str, Any]] | None) -> list[dict[str, str]]:
 
 def build_etsi_lote(scheme: Scheme) -> dict[str, Any]:
     """Produce the canonical ETSI 119 602 LoTE/LoTL JSON for `scheme`."""
+    now = datetime.now(timezone.utc)
+    next_update = now + timedelta(days=180)  # 6 months
+
     info: dict[str, Any] = {
         "LoTEVersionIdentifier": 1,
         "LoTESequenceNumber": scheme.sequence_number or 1,
@@ -68,6 +71,8 @@ def build_etsi_lote(scheme: Scheme) -> dict[str, Any]:
         "SchemeOperatorName": _to_lang_value(scheme.operator_names),
         "SchemeName": _to_lang_value(scheme.scheme_name),
         "SchemeTerritory": scheme.territory,
+        "ListIssueDateTime": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "NextUpdate": next_update.strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
 
     if scheme.is_lotl:
