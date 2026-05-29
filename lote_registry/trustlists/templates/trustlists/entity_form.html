@@ -33,18 +33,18 @@
     </fieldset>
 
     <fieldset>
-      <legend>Names <small class="muted">(one per language)</small></legend>
+      <legend>Names * <small class="muted">(one per language)</small></legend>
       <div id="names-list" class="repeater">
         {% for n in form_data.names %}
         <div class="row">
-          <input name="names_lang[]"  placeholder="en" value="{{ n.language }}">
-          <input name="names_value[]" placeholder="Display name" value="{{ n.value }}">
+          <input name="names_lang[]"  placeholder="en" value="{{ n.language }}" required>
+          <input name="names_value[]" placeholder="Display name" value="{{ n.value }}" required>
           <button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>
         </div>
         {% empty %}
         <div class="row">
-          <input name="names_lang[]"  placeholder="en">
-          <input name="names_value[]" placeholder="Display name">
+          <input name="names_lang[]"  placeholder="en" value="en" required>
+          <input name="names_value[]" placeholder="Display name" required>
           <button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>
         </div>
         {% endfor %}
@@ -82,18 +82,18 @@
     </fieldset>
 
     <fieldset>
-      <legend>Information URIs <small class="muted">(public-facing info pages, multilang)</small></legend>
+      <legend>Information URIs * <small class="muted">(public-facing info pages, multilang)</small></legend>
       <div id="info-list" class="repeater">
         {% for n in form_data.information_uri %}
         <div class="row">
-          <input name="info_lang[]"  placeholder="en" value="{{ n.language }}">
-          <input name="info_value[]" placeholder="{{ placeholders.info_uri }}" value="{{ n.value }}">
+          <input name="info_lang[]"  placeholder="en" value="{{ n.language }}" required>
+          <input name="info_value[]" placeholder="{{ placeholders.info_uri }}" value="{{ n.value }}" required>
           <button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>
         </div>
         {% empty %}
         <div class="row">
-          <input name="info_lang[]"  placeholder="en">
-          <input name="info_value[]" placeholder="{{ placeholders.info_uri }}">
+          <input name="info_lang[]"  placeholder="en" value="en" required>
+          <input name="info_value[]" placeholder="{{ placeholders.info_uri }}" required>
           <button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>
         </div>
         {% endfor %}
@@ -115,7 +115,7 @@
         </div>
         {% empty %}
         <div class="row">
-          <input name="svcname_lang[]"  placeholder="en">
+          <input name="svcname_lang[]"  placeholder="en" value="en">
           <input name="svcname_value[]" placeholder="{{ placeholders.service_name }}">
           <button type="button" class="btn ghost" onclick="this.closest('.row').remove()">×</button>
         </div>

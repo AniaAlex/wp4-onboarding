@@ -100,7 +100,7 @@ LIST_BASENAME = {
     ListType.WRPAC: "wrpac_providers",
     ListType.WRPRC: "wrprc_providers",
     ListType.REGISTRAR: "registrars_registers",
-    ListType.LOTL: "list_of_trusted_lists",
+    ListType.LOTL: "lotl",
 }
 
 ENTITY_TYPE_FOR_LIST = {
