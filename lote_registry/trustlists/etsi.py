@@ -12,7 +12,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from .models import (
-    Entity,
     ListType,
     LotlPointer,
     Scheme,
@@ -82,7 +81,18 @@ def build_etsi_lote(scheme: Scheme) -> dict[str, Any]:
         info["PointersToOtherLoTE"] = [
             {
                 "LoTELocation": p.location,
-                "ServiceDigitalIdentities": None,
+                "ServiceDigitalIdentities": [
+                    {
+                        "X509Certificates": [
+                            {
+                                "encoding": "base64",
+                                "specRef": "https://www.ietf.org/rfc/rfc5280.txt",
+                                "val": _pem_to_b64_der(pem),
+                            }
+                            for pem in _split_pem_chain(p.cert_pem)
+                        ]
+                    }
+                ] if p.cert_pem else None,
                 "LoTEQualifiers": [
                     {
                         "LoTEType": p.scheme_type,

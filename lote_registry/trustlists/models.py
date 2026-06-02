@@ -249,6 +249,7 @@ class LotlPointer(models.Model):
         ],
         default="application/json",
     )
+    cert_pem = models.TextField(blank=True, help_text="PEM-encoded signing certificate for this pointer's ServiceDigitalIdentity")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
