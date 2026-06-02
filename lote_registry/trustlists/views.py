@@ -410,6 +410,7 @@ def _pointer_form_context(scheme: Scheme, *, pointer: LotlPointer | None) -> dic
         form_data = {
             "location": "", "scheme_territory": "", "scheme_type": "",
             "mime_type": "application/json", "scheme_operator_names": [],
+            "cert_pem": "",
         }
     else:
         form_data = {
@@ -418,6 +419,7 @@ def _pointer_form_context(scheme: Scheme, *, pointer: LotlPointer | None) -> dic
             "scheme_type": pointer.scheme_type,
             "mime_type": pointer.mime_type,
             "scheme_operator_names": pointer.scheme_operator_names or [],
+            "cert_pem": pointer.cert_pem or "",
         }
     return {
         "scheme": scheme,
@@ -436,6 +438,7 @@ def _save_pointer_from_post(scheme: Scheme, post, *, pointer: LotlPointer | None
     pointer.scheme_type = post.get("scheme_type", "")
     pointer.scheme_operator_names = op_names
     pointer.mime_type = post.get("mime_type", "application/json")
+    pointer.cert_pem = post.get("cert_pem", "")
     pointer.save()
     return pointer
 

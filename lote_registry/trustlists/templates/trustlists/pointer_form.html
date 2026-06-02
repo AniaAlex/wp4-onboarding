@@ -64,6 +64,18 @@
       <button type="button" class="btn ghost" data-add-pair="opnames-list,opnames_lang,opnames_value">+ Add language</button>
     </fieldset>
 
+    <fieldset>
+      <legend>Signing certificate <small class="muted">(ServiceDigitalIdentity — optional)</small></legend>
+      <label>
+        X.509 certificate (.pem) <small class="muted">— pick a file or paste below</small>
+        <input type="file" id="cert_pem_file" accept=".pem,.crt,.cer">
+      </label>
+      <label>
+        <textarea id="cert_pem" name="cert_pem" rows="6"
+                  placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----">{{ form_data.cert_pem|default:'' }}</textarea>
+      </label>
+    </fieldset>
+
     <div class="actions">
       <a class="btn ghost" href="{% url 'scheme_detail' scheme.id %}">Cancel</a>
       {% if pointer %}
@@ -89,5 +101,16 @@ document.querySelectorAll("[data-add-pair]").forEach((btn) => {
     document.getElementById(listId).appendChild(row);
   });
 });
+
+const certFile = document.getElementById("cert_pem_file");
+if (certFile) {
+  certFile.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => { document.getElementById("cert_pem").value = ev.target.result; };
+    reader.readAsText(file);
+  });
+}
 </script>
 {% endblock %}
